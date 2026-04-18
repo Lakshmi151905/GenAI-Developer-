@@ -1,0 +1,1366 @@
+# 📚 RAG MongoDB Demo v8 - Complete Documentation
+
+## 🎯 Project Overview
+
+**RAG Mongo Demo v8** is a sophisticated **Retrieval-Augmented Generation (RAG)** application that combines test case management with advanced semantic search capabilities. It enables searching through test cases and user stories using multiple search strategies including:
+
+- **Vector Search** - Semantic/conceptual matching using AI embeddings
+- **BM25 Search** - Fast keyword-based search  
+- **Hybrid Search** - Combined BM25 + Vector with customizable weights
+- **AI Reranking** - Intelligent result reranking using Groq LLM
+
+---
+
+## 🏗️ Architecture Overview
+
+The project follows a **client-server architecture** with three main layers:
+
+### **Layer 1: Frontend (React Client)**
+- **Technology**: React 19, Material-UI (MUI), Axios
+- **Location**: `client/src/`
+- **Purpose**: Web UI for searching, managing test cases, and configuring settings
+- **Runs on**: Port 3000 (development)
+
+### **Layer 2: Backend Server (Node.js/Express)**
+- **Technology**: Express.js, MongoDB Node Driver, Mistral AI, Groq SDK
+- **Location**: `server/index.js`
+- **Purpose**: API endpoints for search, embeddings, data processing
+- **Runs on**: Port 3001 (configurable via `PORT` env var)
+
+### **Layer 3: Data Processing Scripts (Node.js)**
+- **Location**: `src/scripts/`
+- **Purpose**: Batch processing for data conversion, embeddings, and utilities
+- **Components**:
+  - Data conversion (Excel → JSON)
+  - Embedding generation (Mistral AI)
+  - Query preprocessing (normalization, synonym expansion)
+  - Search implementations (BM25, Vector, Hybrid, Reranking)
+
+### **Data Layer: MongoDB Atlas**
+- Vector search indexes for semantic matching
+- BM25 indexes for keyword search
+- Collections: `testcases` and `user_stories`
+
+---
+
+## 📦 Technology Stack
+
+### **Frontend**
+```
+React 19.1.1          - UI Framework
+@mui/material 7.3.2   - Component library
+Axios 1.12.2          - HTTP client
+Notistack 3.0.2       - Notifications
+React Router 7.9.3    - Routing
+```
+
+### **Backend**
+```
+Express 4.18.2        - Web framework
+MongoDB 6.8.0         - Database driver
+Mistral AI SDK 0.4.0  - Embedding generation
+Groq SDK 0.5.0        - LLM for reranking/summarization
+OpenAI SDK 4.104.0    - Alternative embeddings
+```
+
+### **External APIs**
+```
+Mistral AI            - Text embeddings (mistral-embed)
+Groq LLM              - AI reranking & summarization
+Hugging Face          - CrossEncoder reranking (optional)
+```
+
+---
+
+## 📁 Project Structure
+
+```
+rag-mongo-demo-v8/
+│
+├── 📄 package.json                  # Root dependencies & npm scripts
+├── 📄 server/index.js               # Express server (main entry point)
+├── 📄 README.md                     # This file
+│
+├── 📁 client/                       # React frontend application
+│   ├── 📄 package.json              # Client dependencies
+│   ├── public/                      # Static files
+│   │   ├── index.html
+│   │   ├── manifest.json
+│   │   └── robots.txt
+│   ├── build/                       # Production build output
+│   └── src/
+│       ├── App.js                   # Main React component
+│       ├── index.js                 # React entry point
+│       ├── App.css
+│       ├── index.css
+│       ├── components/
+│       │   ├── data/
+│       │   │   ├── ConvertToJson.js         # Excel to JSON converter UI
+│       │   │   └── EmbeddingsStore.js       # Embedding management UI
+│       │   ├── search/
+│       │   │   ├── QuerySearch.js           # Vector semantic search UI
+│       │   │   ├── BM25Search.js            # Keyword search UI
+│       │   │   ├── HybridSearch.js          # Combined search UI
+│       │   │   └── RerankingSearch.js       # AI reranking UI
+│       │   ├── processing/
+│       │   │   ├── QueryPreprocessing.js    # Query normalization UI
+│       │   │   ├── SummarizationDedup.js    # Result summarization UI
+│       │   │   └── PromptSchemaManager.js   # Schema management UI
+│       │   └── settings/
+│       │       └── Settings.js              # App configuration
+│
+├── 📁 src/                          # Backend scripts & configs
+│   ├── config/
+│   │   ├── testcases-bm25-index.json          # BM25 index definition
+│   │   ├── testcases-vector-index.json        # Vector index definition
+│   │   ├── user-stories-bm25-index.json
+│   │   └── user-stories-vector-index.json
+│   │
+│   ├── data/
+│   │   └── converted-*.json         # Generated test case data files
+│   │
+│   ├── scripts/
+│   │   ├── data-conversion/
+│   │   │   ├── excel-to-json.js             # Convert Excel to JSON
+│   │   │   ├── excel-to-userstories.js      # Convert user stories
+│   │   │   └── fetch-jira-stories.js        # Fetch from Jira API
+│   │   │
+│   │   ├── embeddings/
+│   │   │   ├── create-embeddings-batch-mistral.js       # Generate embeddings
+│   │   │   └── create-userstories-embeddings-batch-mistral.js
+│   │   │
+│   │   ├── query-preprocessing/
+│   │   │   ├── queryPreprocessor.js         # Main preprocessing pipeline
+│   │   │   ├── normalizer.js                # Text normalization
+│   │   │   ├── abbreviationMapper.js        # Expand abbreviations
+│   │   │   ├── synonymExpander.js           # Generate query variations
+│   │   │   ├── dictionaries.js              # Domain-specific mappings
+│   │   │   └── test-preprocessing.js        # Testing utilities
+│   │   │
+│   │   ├── search/
+│   │   │   ├── bm25-search.js               # BM25 keyword search
+│   │   │   ├── search-vector-db.js          # Vector semantic search
+│   │   │   ├── rerank-search.js             # AI reranking
+│   │   │   ├── score-fusion-search.js       # Score fusion algorithm
+│   │   │   ├── search-combined-stores.js    # Search both indexes
+│   │   │   └── compare-field-weights.js     # Compare BM25 weights
+│   │   │
+│   │   └── utilities/
+│   │       ├── mistralEmbedding.js          # Mistral API client
+│   │       ├── groqClient.js                # Groq LLM client
+│   │       └── delete-all-documents.js      # Database cleanup
+│
+├── 📁 uploads/                      # Uploaded files directory
+└── 📁 releases/                     # Release files and stories
+
+```
+
+---
+
+## 🚀 Quick Start
+
+### **Prerequisites**
+- Node.js 18+ and npm
+- MongoDB Atlas account with Vector Search enabled
+- API keys for:
+  - Mistral AI (embeddings)
+  - Groq (reranking/summarization)
+
+### **Installation**
+
+1. **Clone & Install Dependencies**
+   ```bash
+   cd rag-mongo-demo-v8
+   npm install          # Installs both root and client dependencies
+   ```
+
+2. **Create Environment File**
+   
+   Create a `.env` file in the root directory:
+   ```env
+   # ========== MongoDB Configuration ==========
+   MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/
+   DB_NAME=test_database
+   COLLECTION_NAME=testcases
+   USER_STORIES_COLLECTION_NAME=user_stories
+   
+   # ========== Search Index Names ==========
+   VECTOR_INDEX_NAME=vector-search-index
+   BM25_INDEX_NAME=bm25-search-index
+   
+   # ========== API Keys ==========
+   MISTRAL_API_KEY=your_mistral_api_key
+   MISTRAL_EMBEDDING_MODEL=mistral-embed
+   GROQ_API_KEY=your_groq_api_key
+   GROQ_RERANK_MODEL=llama-3.2-3b-preview
+   GROQ_SUMMARIZATION_MODEL=llama-3.3-70b-versatile
+   
+   # ========== Optional APIs ==========
+   OPENAI_API_KEY=your_openai_key
+   HUGGINGFACE_API_KEY=your_hf_key
+   
+   # ========== Server Configuration ==========
+   PORT=3001
+   NODE_ENV=development
+   ```
+
+3. **Start Development Server**
+   ```bash
+   npm run dev          # Runs client & server simultaneously
+   ```
+   
+   Once running:
+   - **Frontend**: http://localhost:3000
+   - **Backend API**: http://localhost:3001
+
+---
+
+## 📖 Features & How to Use
+
+### **1️⃣ Convert Excel to JSON**
+
+**What it does**: Converts Excel test case files into JSON format for processing
+
+**Component**: 
+- UI: `client/src/components/data/ConvertToJson.js`
+- Script: `src/scripts/data-conversion/excel-to-json.js`
+
+**Excel File Format** (required columns):
+```
+module | testCaseId | title | description | steps | expectedResults | 
+priority | risk | automationManual | preRequisites | type
+```
+
+**How to use via Web UI**:
+1. Go to "Convert to JSON" tab
+2. Click "Upload Excel File"
+3. Select your test case Excel file
+4. System converts and validates automatically
+5. Download converted JSON file
+6. Results saved to `src/data/converted-*.json`
+
+**How to use via Script**:
+```bash
+# Ensure your Excel file is at: src/data/testcases.xlsx
+node src/scripts/data-conversion/excel-to-json.js
+```
+
+**Output Example**:
+```json
+[
+  {
+    "id": "TC_001",
+    "module": "patient-communication",
+    "title": "Share Diagnostic Reports",
+    "description": "User can share reports with patients",
+    "steps": "1. Login 2. Navigate to Reports 3. Click Share",
+    "expectedResults": "Report shared successfully",
+    "priority": "high",
+    "risk": "medium",
+    "automationManual": "automated"
+  }
+]
+```
+
+---
+
+### **2️⃣ Create & Store Embeddings**
+
+**What it does**: Generates AI vector embeddings using Mistral AI and stores them in MongoDB
+
+**Component**: 
+- UI: `client/src/components/data/EmbeddingsStore.js`
+- Script: `src/scripts/embeddings/create-embeddings-batch-mistral.js`
+
+**Features**:
+- Batch processing (50 test cases per batch)
+- Automatic retry with exponential backoff
+- Cost & token tracking
+- Real-time progress monitoring
+- Automatic MongoDB index creation
+
+**How to use via Web UI**:
+1. Go to "Embeddings & Store" tab
+2. Select JSON file to process
+3. Click "Generate & Store Embeddings"
+4. Monitor progress in real-time
+5. View cost breakdown and token usage
+
+**How to use via Script**:
+```bash
+# Configure in .env first, then run:
+node src/scripts/embeddings/create-embeddings-batch-mistral.js
+```
+
+**Process Flow**:
+```
+JSON File → Extract text → Batch (50 items) → Mistral API
+   ↓
+Generate embeddings (1024-dim vectors) → Store in MongoDB
+   ↓
+Create search indexes → Ready for searching
+```
+
+**Cost Example**:
+- 1,000 test cases ≈ $0.10 (Mistral: $0.10 per 1M tokens)
+- Typical tokens per test case: 100-150
+
+**Output in MongoDB**:
+```json
+{
+  "_id": ObjectId("..."),
+  "id": "TC_001",
+  "title": "Share Diagnostic Reports",
+  "description": "...",
+  "embedding": [0.123, 0.456, ..., 0.789],  // 1024 dimensions
+  "module": "patient-communication",
+  "priority": "high",
+  "risk": "medium",
+  "createdAt": "2024-04-19T10:30:00Z",
+  "embeddingMetadata": {
+    "model": "mistral-embed",
+    "tokens": 145,
+    "cost": 0.000145,
+    "apiSource": "mistral-batch"
+  }
+}
+```
+
+---
+
+### **3️⃣ Query Preprocessing**
+
+**What it does**: Transforms and expands user queries for better search matching
+
+**Component**: 
+- UI: `client/src/components/processing/QueryPreprocessing.js`
+- Scripts: `src/scripts/query-preprocessing/`
+
+**Processing Steps**:
+
+1. **Normalization** 
+   - Lowercase all text
+   - Remove special characters
+   - Standardize spacing
+   - Preserve numbers and hyphens
+
+2. **Test Case ID Extraction**
+   - Finds: TC_001, TC-001, tc 001 patterns
+   - Preserves them for exact matching
+   - Format: TC_001
+
+3. **Abbreviation Expansion**
+   - UHID → unique health id
+   - IP → inpatient
+   - OP → outpatient
+   - MRN → medical record number
+   - Many more healthcare abbreviations
+
+4. **Synonym Expansion**
+   - Generate multiple query variations
+   - Example: "merge" → "merge", "combine", "integrate"
+   - Limit variations to avoid explosion
+
+**Example Processing**:
+```
+Input:     "merge UHID 12345"
+     ↓
+Normalize: "merge uhid 12345"
+     ↓
+Abbreviations: "merge unique health id 12345"
+     ↓
+Synonyms: [
+  "merge unique health id 12345",
+  "combine unique health id 12345",
+  "integrate unique health id 12345"
+]
+```
+
+**How to use via Web UI**:
+1. Go to "Query Preprocessing" tab
+2. Enter your raw query
+3. See step-by-step transformations
+4. Copy any expanded query for searching
+5. View tokens, abbreviations found, synonyms generated
+
+**Configuration Options**:
+```javascript
+{
+  enableAbbreviations: true,          // Expand abbreviations
+  enableSynonyms: true,               // Generate variations
+  maxSynonymVariations: 5,            // Max variations
+  preserveTestCaseIds: true,          // Keep TC_001 patterns
+  customAbbreviations: {},            // Add your own
+  customSynonyms: {}                  // Add your own
+}
+```
+
+---
+
+### **4️⃣ Vector Semantic Search**
+
+**What it does**: Finds test cases based on **semantic meaning** using AI embeddings
+
+**Component**: 
+- UI: `client/src/components/search/QuerySearch.js`
+- Script: `src/scripts/search/search-vector-db.js`
+
+**How it Works**:
+```
+User Query → Convert to embedding → Search MongoDB Vector Index
+     ↓
+Calculate cosine similarity → Rank by similarity → Return top-K results
+```
+
+**Search Score**: 0-1 scale (1 = perfect match, 0 = no similarity)
+
+**When to Use Vector Search**:
+- ✅ Natural language questions
+- ✅ Conceptual/semantic queries
+- ✅ Fuzzy matching (typos, synonyms)
+- ✅ Multi-word meaning queries
+- ❌ Exact ID/reference matching
+- ❌ Very short queries (1-2 words)
+
+**Example Queries**:
+```
+Query: "How do I share patient reports with them?"
+Results: [
+  "Share Diagnostic Reports via WhatsApp" (0.92),
+  "Patient Communication System" (0.87),
+  "Report Distribution Methods" (0.84)
+]
+
+Query: "merge uhid numbers"
+Results: [
+  "Merge UHID Records" (0.89),
+  "UHID Consolidation Process" (0.85)
+]
+```
+
+**How to use via Web UI**:
+1. Go to "Vector Search" tab
+2. Enter natural language query
+3. Set result limit (5-50)
+4. Optional: Apply filters (module, priority, risk)
+5. Click "Search"
+6. View results with similarity scores (%)
+
+**Configuration**:
+```json
+{
+  "query": "share reports",
+  "limit": 5,
+  "filters": {
+    "module": "patient-communication",
+    "priority": "high"
+  }
+}
+```
+
+**Output**:
+```json
+{
+  "results": [
+    {
+      "id": "TC_045",
+      "title": "Share Diagnostic Reports",
+      "description": "...",
+      "module": "patient-communication",
+      "score": 0.9234,
+      "priority": "high"
+    }
+  ],
+  "count": 1,
+  "cost": 0.00001,
+  "tokens": 15
+}
+```
+
+---
+
+### **5️⃣ BM25 Keyword Search**
+
+**What it does**: Fast keyword-based matching using BM25 algorithm
+
+**Component**: 
+- UI: `client/src/components/search/BM25Search.js`
+- Script: `src/scripts/search/bm25-search.js`
+
+**How it Works**:
+```
+Query → Split into keywords → Search MongoDB BM25 Index
+  ↓
+Apply field-level weights → Rank by BM25 score → Return results
+```
+
+**Field Weights** (configurable):
+```
+id: 10.0            (Exact IDs weighted highest - TC_001 matches)
+title: 5.0          (Test case titles very important)
+module: 3.0         (Module categorization important)
+description: 2.0    (Description secondary importance)
+expectedResults: 1.5
+steps: 1.0          (Steps base weight)
+preRequisites: 0.8  (Prerequisites lowest)
+```
+
+**When to Use BM25 Search**:
+- ✅ Exact ID/reference searches (TC_001, TC_027)
+- ✅ Keyword-specific queries
+- ✅ Fast searches (sub-100ms)
+- ✅ Technical terms
+- ❌ Conceptual/semantic matching
+- ❌ Typo tolerance
+
+**Example Queries**:
+```
+Query: "TC_001"
+Results: [
+  "TC_001: Share Reports" (45.23)
+]
+
+Query: "merge UHID operation"
+Results: [
+  "Merge UHID Records" (38.45),
+  "UHID Operations" (32.12)
+]
+```
+
+**How to use via Web UI**:
+1. Go to "BM25 Search" tab
+2. Enter keywords or test case ID
+3. Set limit (5-50)
+4. Optional: Apply metadata filters
+5. Click "Search"
+6. View results with BM25 scores
+
+**BM25 Scores**: Not normalized (0-100+ range)
+- 50+ = Excellent match
+- 30-50 = Good match
+- 15-30 = Possible match
+- <15 = Weak match
+
+---
+
+### **6️⃣ Hybrid Search**
+
+**What it does**: Combines BM25 + Vector search with **customizable weights**
+
+**Component**: 
+- UI: `client/src/components/search/HybridSearch.js`
+- Script: `src/scripts/search/search-combined-stores.js`
+
+**How it Works**:
+```
+Query
+  ├→ BM25 Search (fast keyword matching)
+  └→ Vector Search (semantic matching)
+       ↓
+   Normalize both scores to 0-1
+       ↓
+   Fuse: final_score = (bm25_weight × bm25_score) + (vector_weight × vector_score)
+       ↓
+   Re-rank & return top-K results
+```
+
+**Weight Presets**:
+
+| Preset | BM25 | Vector | Best For |
+|--------|------|--------|----------|
+| **Balanced** | 50% | 50% | General queries |
+| **Keyword Heavy** | 70% | 30% | Specific terms/IDs |
+| **Semantic Heavy** | 30% | 70% | Conceptual queries |
+
+**Example: "Share patient reports"**
+
+BM25 Results (keyword matching):
+```
+1. Share Documents (42.5)
+2. Report System (38.2)
+3. Doc Sharing (35.1)
+```
+
+Vector Results (semantic):
+```
+1. Patient Communication (0.94)
+2. Report Delivery (0.89)
+3. Information Sharing (0.86)
+```
+
+Hybrid (50/50) - Normalized & Fused:
+```
+1. Patient Communication (0.89) ← Vector dominates
+2. Share Documents (0.87)
+3. Report System (0.84)
+```
+
+**How to use via Web UI**:
+1. Go to "Hybrid Search" tab
+2. Enter query
+3. **Adjust weight sliders**: Drag to balance BM25 ↔ Vector
+4. Or click preset buttons
+5. Set result limit
+6. Click "Search"
+7. View combined results with fusion scores
+
+**Typical Use Cases**:
+- **Balanced (50/50)**: Unknown query type
+- **Keyword Heavy (70/30)**: Looking for specific test IDs like TC_001
+- **Semantic Heavy (30/70)**: Natural language questions
+
+---
+
+### **7️⃣ AI Reranking (Score Fusion)**
+
+**What it does**: Uses **Groq LLM** to intelligently rerank search results
+
+**Component**: 
+- UI: `client/src/components/search/RerankingSearch.js`
+- Script: `src/scripts/search/rerank-search.js`
+
+**How it Works**:
+```
+Query
+  ↓
+Run Hybrid Search → Get top 50 candidates
+  ↓
+Send to Groq LLM: "Score these documents by relevance"
+  ↓
+LLM analyzes & scores each (0-100)
+  ↓
+Re-rank by LLM scores
+  ↓
+Return top-K reranked results
+```
+
+**Why Use LLM Reranking?**
+- 🧠 **Semantic Understanding** - LLM "understands" meaning
+- 🎯 **Context Aware** - Considers relationship to query
+- 🎪 **Relevance > Similarity** - Not just matching, but relevance
+- ⚡ **Fast & Cheap** - Using Groq's fast models
+
+**Cost**: ~$0.0001 per reranking operation (very cheap!)
+
+**Example: "Share reports with patients via messaging"**
+
+Before Reranking (Hybrid Search):
+```
+1. Share Documents (0.89)
+2. Report System (0.87)
+3. Patient Communication (0.82)
+```
+
+After Groq Reranking:
+```
+1. Patient Communication (0.96) ↑ LLM sees better relevance
+2. Share Documents (0.88)
+3. Report System (0.75)
+```
+
+**How to use via Web UI**:
+1. Go to "Score Fusion" tab
+2. Enter query
+3. Set rerank pool size (default: 50)
+4. Set final result limit
+5. Click "Search & Rerank"
+6. View before/after rankings
+7. Use tabs to compare results
+
+**Configuration**:
+```json
+{
+  "query": "share patient reports",
+  "limit": 5,
+  "rerankTopK": 50,      // Evaluate top 50, return top 5
+  "useGroqOnly": true
+}
+```
+
+---
+
+## 🔌 API Endpoints Reference
+
+All endpoints expect and return **JSON**
+
+### **Search Endpoints**
+
+#### **POST** `/api/search` - Vector Search
+```bash
+curl -X POST http://localhost:3001/api/search \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "Share reports with patients",
+    "limit": 5,
+    "filters": { "module": "patient-communication" }
+  }'
+```
+
+**Response**:
+```json
+{
+  "results": [
+    {
+      "id": "TC_045",
+      "title": "Share Diagnostic Reports",
+      "score": 0.9234,
+      "module": "patient-communication",
+      "priority": "high"
+    }
+  ],
+  "count": 1,
+  "query": "share reports with patients",
+  "cost": 0.00001,
+  "tokens": 15
+}
+```
+
+#### **POST** `/api/search/bm25` - BM25 Keyword Search
+```bash
+curl -X POST http://localhost:3001/api/search/bm25 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "merge UHID",
+    "limit": 10,
+    "filters": { "priority": "high" }
+  }'
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "results": [
+    {
+      "id": "TC_001",
+      "title": "Merge UHID Records",
+      "bm25Score": 45.23,
+      "module": "registration"
+    }
+  ],
+  "count": 8,
+  "searchTime": 125
+}
+```
+
+#### **POST** `/api/search/hybrid` - Hybrid Search
+```bash
+curl -X POST http://localhost:3001/api/search/hybrid \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "share diagnostic reports",
+    "limit": 10,
+    "bm25Weight": 0.5,
+    "vectorWeight": 0.5,
+    "filters": {}
+  }'
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "results": [
+    {
+      "id": "TC_045",
+      "title": "Share Diagnostic Reports",
+      "score": 0.87,
+      "matchedInBoth": true
+    }
+  ],
+  "count": 12,
+  "timing": {
+    "bm25Time": 120,
+    "vectorTime": 450,
+    "totalTime": 570
+  },
+  "weights": {
+    "bm25": 0.5,
+    "vector": 0.5
+  }
+}
+```
+
+#### **POST** `/api/search/rerank` - AI Reranking
+```bash
+curl -X POST http://localhost:3001/api/search/rerank \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "share reports",
+    "limit": 5,
+    "rerankTopK": 50,
+    "useGroqOnly": true,
+    "filters": {}
+  }'
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "results": [
+    {
+      "id": "TC_045",
+      "title": "Share Diagnostic Reports",
+      "rerankScore": 0.96,
+      "originalRank": 3
+    }
+  ],
+  "count": 5,
+  "candidatesEvaluated": 50,
+  "timing": {
+    "groqTime": 1200,
+    "totalTime": 1650
+  }
+}
+```
+
+### **Utility Endpoints**
+
+#### **GET** `/api/health` - Health Check
+```bash
+curl http://localhost:3001/api/health
+```
+
+**Response**:
+```json
+{
+  "status": "OK",
+  "message": "Server is running"
+}
+```
+
+#### **GET** `/api/metadata/distinct` - Get Filter Options
+```bash
+curl http://localhost:3001/api/metadata/distinct
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "metadata": {
+    "modules": [
+      "patient-communication",
+      "registration",
+      "appointment",
+      "billing"
+    ],
+    "priorities": ["high", "medium", "low"],
+    "risks": ["critical", "major", "minor", "trivial"],
+    "types": ["functional", "security", "performance", "usability"]
+  }
+}
+```
+
+#### **GET** `/api/jobs/active` - Get Active Jobs
+```bash
+curl http://localhost:3001/api/jobs/active
+```
+
+**Response**:
+```json
+{
+  "jobs": [
+    {
+      "id": "job-1714041234567-abc123def456",
+      "status": "in-progress",
+      "progress": 45,
+      "total": 100,
+      "currentFile": "testcases.xlsx",
+      "startTime": "2024-04-19T10:00:00Z"
+    }
+  ]
+}
+```
+
+#### **GET** `/api/jobs/:jobId` - Get Job Status
+```bash
+curl http://localhost:3001/api/jobs/job-1714041234567-abc123def456
+```
+
+**Response**:
+```json
+{
+  "id": "job-1714041234567-abc123def456",
+  "status": "completed",
+  "progress": 100,
+  "total": 100,
+  "results": [
+    {
+      "file": "testcases.json",
+      "success": true,
+      "count": 250,
+      "cost": 0.025
+    }
+  ],
+  "startTime": "2024-04-19T10:00:00Z",
+  "endTime": "2024-04-19T10:15:30Z"
+}
+```
+
+---
+
+## ⚙️ npm Scripts
+
+```bash
+# Development
+npm run dev              # Start both client & server (concurrent)
+npm run client          # Start only React client (port 3000)
+npm run server          # Start only Node server (port 3001)
+npm run build           # Build React for production
+
+# Data Processing
+node src/scripts/data-conversion/excel-to-json.js
+node src/scripts/embeddings/create-embeddings-batch-mistral.js
+node src/scripts/embeddings/create-userstories-embeddings-batch-mistral.js
+
+# Search Operations
+node src/scripts/search/bm25-search.js "query text"
+node src/scripts/search/search-vector-db.js "query text"
+node src/scripts/search/rerank-search.js "query text"
+
+# Utilities
+node src/scripts/utilities/delete-all-documents.js
+```
+
+---
+
+## 📊 Database Configuration
+
+### **MongoDB Collections**
+
+The application uses two main collections:
+
+#### **testcases** Collection
+```javascript
+{
+  _id: ObjectId,
+  id: String,                    // Unique test case ID (TC_001)
+  module: String,                // Module name
+  title: String,                 // Test case title
+  description: String,           // Full description
+  steps: String,                 // Test steps
+  expectedResults: String,       // Expected results
+  preRequisites: String,         // Pre-requisites
+  priority: String,              // high, medium, low
+  risk: String,                  // critical, major, minor
+  automationManual: String,      // automated, manual
+  type: String,                  // functional, security, etc.
+  embedding: [Number],           // 1024-dimensional vector
+  createdAt: Date,
+  embeddingMetadata: {
+    model: String,
+    tokens: Number,
+    cost: Number,
+    apiSource: String
+  }
+}
+```
+
+#### **user_stories** Collection
+```javascript
+{
+  _id: ObjectId,
+  key: String,                   // Jira key (US-123)
+  summary: String,               // Story summary
+  description: String,           // Full description
+  status: { name: String },      // Story status
+  priority: { name: String },    // Priority
+  assignee: { displayName: String },
+  project: String,               // Project name
+  epic: String,                  // Epic link
+  storyPoints: Number,
+  components: [String],
+  labels: [String],
+  embedding: [Number],           // 1024-dimensional vector
+  createdAt: Date
+}
+```
+
+### **MongoDB Atlas Search Indexes**
+
+#### **BM25 Index** (`testcases-bm25-index`)
+```json
+{
+  "mappings": {
+    "dynamic": false,
+    "fields": {
+      "id": {
+        "type": "string",
+        "analyzer": "lucene.keyword"
+      },
+      "title": {
+        "type": "string",
+        "analyzer": "lucene.standard"
+      },
+      "description": {
+        "type": "string",
+        "analyzer": "lucene.standard"
+      },
+      "steps": {
+        "type": "string",
+        "analyzer": "lucene.standard"
+      },
+      "expectedResults": {
+        "type": "string",
+        "analyzer": "lucene.standard"
+      },
+      "preRequisites": {
+        "type": "string",
+        "analyzer": "lucene.standard"
+      },
+      "module": {
+        "type": "string",
+        "analyzer": "lucene.keyword"
+      },
+      "priority": {
+        "type": "string",
+        "analyzer": "lucene.keyword"
+      },
+      "risk": {
+        "type": "string",
+        "analyzer": "lucene.keyword"
+      }
+    }
+  }
+}
+```
+
+#### **Vector Index** (`vector-search-index`)
+```json
+{
+  "fields": [
+    {
+      "type": "vector",
+      "path": "embedding",
+      "similarity": "cosine",
+      "dimensions": 1024
+    }
+  ]
+}
+```
+
+---
+
+## 🔑 Environment Variables
+
+### **Required Variables**
+
+```env
+# MongoDB Connection
+MONGODB_URI              MongoDB Atlas connection string with password
+DB_NAME                  Database name
+COLLECTION_NAME          Test cases collection name
+
+# AI/ML APIs (Required)
+MISTRAL_API_KEY          Mistral API key for embeddings
+GROQ_API_KEY             Groq API key for reranking
+
+# Search Index Names
+VECTOR_INDEX_NAME        Name of vector search index in MongoDB
+BM25_INDEX_NAME          Name of BM25 search index in MongoDB
+```
+
+### **Optional Variables**
+
+```env
+# Models
+MISTRAL_EMBEDDING_MODEL      Default: mistral-embed
+GROQ_RERANK_MODEL            Default: llama-3.2-3b-preview
+GROQ_SUMMARIZATION_MODEL     Default: llama-3.3-70b-versatile
+
+# Alternative AI Providers
+OPENAI_API_KEY               For alternative embeddings
+HUGGINGFACE_API_KEY          For CrossEncoder reranking
+
+# Server
+PORT                         Default: 3001
+NODE_ENV                     development or production
+
+# User Stories
+USER_STORIES_COLLECTION_NAME Default: user_stories
+```
+
+---
+
+## 📈 Complete Workflow Example
+
+### **Step-by-Step Guide**
+
+#### **Step 1: Prepare Test Case Data**
+
+Option A - Use Web UI:
+1. Go to "Convert to JSON" tab
+2. Upload Excel file with test cases
+3. Download converted JSON
+
+Option B - Use Script:
+```bash
+# Place Excel at: src/data/testcases.xlsx
+node src/scripts/data-conversion/excel-to-json.js
+# Output: src/data/converted-*.json
+```
+
+#### **Step 2: Generate Embeddings**
+
+Option A - Use Web UI:
+1. Go to "Embeddings & Store" tab
+2. Select converted JSON file
+3. Click "Generate & Store Embeddings"
+4. Monitor progress
+5. View cost breakdown
+
+Option B - Use Script:
+```bash
+# Ensure MongoDB and API keys configured
+node src/scripts/embeddings/create-embeddings-batch-mistral.js
+```
+
+Status: Documents now in MongoDB with embedding vectors
+
+#### **Step 3: Test with Query Preprocessing**
+
+1. Go to "Query Preprocessing" tab
+2. Enter test query: "merge UHID"
+3. See transformations:
+   - Normalized: "merge uhid"
+   - Abbreviated: "merge unique health id"
+   - Synonyms: [...variations...]
+
+#### **Step 4: Try Different Searches**
+
+**Vector Search** - "How do I merge patient records?"
+- Get semantic matches
+- Good for natural language
+
+**BM25 Search** - "TC_001" or "merge operation"
+- Get keyword matches
+- Fast for IDs/terms
+
+**Hybrid Search** - General queries
+- Try different weights
+- Balanced for most cases
+
+**Score Fusion** - Complex queries
+- Get AI-reranked results
+- Best relevance
+
+#### **Step 5: Analyze Results**
+
+- Compare scores between search types
+- Note which method works best for your data
+- Adjust weights if needed
+- Apply filters (module, priority) for specific results
+
+#### **Step 6: Integrate into Your Application**
+
+Use the API endpoints to integrate into your own applications:
+```javascript
+// Example: Call Vector Search from your app
+const response = await fetch('http://localhost:3001/api/search', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    query: 'share patient reports',
+    limit: 5,
+    filters: { module: 'patient-communication' }
+  })
+});
+
+const results = await response.json();
+console.log(results);
+```
+
+---
+
+## 🎯 Quick Reference: When to Use What
+
+| Scenario | Search Method | Why |
+|----------|---------------|-----|
+| "Find TC_001" | BM25 | Exact ID matching, instant |
+| "How do I share reports?" | Vector | Natural language, semantic |
+| "Share or send or distribute reports" | Hybrid | Mix keyword + semantic |
+| "Find most relevant to my needs" | Score Fusion | LLM reranking |
+| "Need module + concept match" | Hybrid + Filters | Combined + metadata |
+| "Very specific keywords" | BM25 Heavy | Keyword-focused |
+| "Conceptual search" | Vector Heavy | Meaning-focused |
+
+---
+
+## 🐛 Troubleshooting
+
+### **Issue: No search results returned**
+
+**Solutions**:
+- ✅ Check MongoDB connection: `npm run server` should log "Connected to MongoDB"
+- ✅ Verify documents exist: Check MongoDB Atlas UI for data
+- ✅ Confirm embeddings field: Documents should have `embedding` array
+- ✅ Verify indexes: Check indexes match `VECTOR_INDEX_NAME` and `BM25_INDEX_NAME`
+- ✅ Check filters: Remove filters to test basic search
+
+### **Issue: Embedding generation fails**
+
+**Solutions**:
+- ✅ Verify `MISTRAL_API_KEY` is valid
+- ✅ Check rate limits: Max 100 concurrent calls
+- ✅ Check token quota: May need more credits
+- ✅ Review console output for detailed error messages
+
+### **Issue: Search is very slow**
+
+**Solutions**:
+- ✅ Use BM25 for faster results (sub-100ms)
+- ✅ Reduce `limit` parameter
+- ✅ Check MongoDB connection pool size
+- ✅ Verify indexes are created in MongoDB
+
+### **Issue: Groq reranking times out**
+
+**Solutions**:
+- ✅ Verify `GROQ_API_KEY` is valid
+- ✅ Reduce `rerankTopK` parameter (try 20 instead of 50)
+- ✅ Check Groq API status
+- ✅ Note: First call may take longer (model loading)
+
+### **Issue: React client won't start**
+
+**Solutions**:
+```bash
+# Clear node_modules and reinstall
+cd client
+rm -r node_modules package-lock.json
+npm install
+npm start
+```
+
+### **Issue: Port already in use**
+
+**Solutions**:
+```bash
+# Find process using port 3001
+netstat -ano | findstr :3001  # Windows
+lsof -i :3001                  # Mac/Linux
+
+# Kill the process or use different port
+$env:PORT = 3002  # PowerShell
+npm run server
+```
+
+---
+
+## 📚 Additional Resources
+
+- [MongoDB Vector Search](https://www.mongodb.com/docs/atlas/atlas-vector-search/)
+- [Mistral AI Documentation](https://docs.mistral.ai/)
+- [Groq Console & API](https://console.groq.com/)
+- [React Documentation](https://react.dev/)
+- [Material-UI Components](https://mui.com/)
+- [BM25 Algorithm](https://en.wikipedia.org/wiki/Okapi_BM25)
+
+---
+
+## 🚀 Production Deployment
+
+### **Pre-Deployment Checklist**
+
+1. **Build Frontend**
+   ```bash
+   cd client
+   npm run build
+   # Creates: client/build/ directory
+   ```
+
+2. **Environment Setup**
+   - Use secure secret management (AWS Secrets, Azure Key Vault)
+   - Never commit `.env` files
+   - Set `NODE_ENV=production`
+   - Use strong passwords for MongoDB
+
+3. **MongoDB Configuration**
+   - Enable IP whitelist in MongoDB Atlas
+   - Create Vector Search indexes
+   - Set up automated backups
+   - Enable encryption at rest
+
+4. **Server Configuration**
+   - Use process manager (PM2, systemd)
+   - Configure reverse proxy (nginx)
+   - Enable CORS for your domain
+   - Set up SSL/TLS certificates
+
+5. **Monitoring & Logging**
+   - Monitor API response times
+   - Track embedding API costs
+   - Alert on failed searches
+   - Log errors and exceptions
+
+### **Deployment Commands**
+
+```bash
+# Start with PM2
+pm2 start server/index.js --name "rag-server"
+pm2 start "npm run client" --name "rag-client"
+
+# Serve built frontend
+npm run build
+npx serve -s client/build -l 3000
+```
+
+---
+
+## 📝 Version History
+
+**v8.0.0** (Current)
+- Multiple search strategies (Vector, BM25, Hybrid)
+- Groq LLM reranking
+- Query preprocessing with abbreviation/synonym expansion
+- Real-time progress tracking
+- Metadata filtering
+- Cost/token tracking
+
+---
+
+## 💡 Tips & Best Practices
+
+### **Query Tips**
+- Use natural language for Vector search
+- Use IDs/keywords for BM25 search
+- Use Hybrid for unknown query types
+- Apply filters to narrow results
+
+### **Performance**
+- BM25 is fastest (sub-100ms)
+- Vector search ~300-500ms
+- Hybrid ~400-600ms
+- Reranking adds 1-2 seconds
+
+### **Cost Optimization**
+- Vector embeddings: ~$0.10 per 1,000 test cases
+- Search queries: Free (no per-query cost)
+- Reranking: ~$0.0001 per operation
+- Budget ~$50/month for 100K test cases
+
+### **Best Practices**
+1. ✅ Regularly update embeddings when adding test cases
+2. ✅ Use metadata filters to reduce search scope
+3. ✅ Test different weight configurations
+4. ✅ Monitor API response times
+5. ✅ Backup MongoDB regularly
+
+---
+
+## 📞 Support & Debugging
+
+For issues, check:
+1. **Server logs**: `npm run server` output
+2. **Browser console**: F12 → Console tab
+3. **MongoDB Atlas**: Check database metrics
+4. **API endpoints**: Use curl to test manually
+5. **Documentation**: See sections above
+
+---
+
+**Last Updated**: April 19, 2026
+
+For more information, refer to the source code documentation in each component file.
