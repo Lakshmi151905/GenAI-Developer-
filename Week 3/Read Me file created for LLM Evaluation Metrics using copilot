@@ -1,0 +1,1538 @@
+# 🎯 Testleaf LLM Evaluation Framework
+
+## 📖 Table of Contents
+1. [Project Overview](#project-overview)
+2. [Technology Stack](#technology-stack)
+3. [Quick Start](#quick-start)
+4. [How It Works](#how-it-works)
+5. [Frontend Architecture & Functions](#frontend-architecture--functions)
+6. [Backend Architecture & Functions](#backend-architecture--functions)
+7. [Python Service Details](#python-service-details)
+8. [Complete Function Reference](#complete-function-reference)
+9. [Data Flow](#data-flow)
+10. [Supported Metrics](#supported-metrics)
+11. [How to Use](#how-to-use)
+
+---
+
+## 🚀 Project Overview
+
+This is a **Web-based LLM Evaluation Platform** that measures the quality of AI/LLM responses using 8 different evaluation metrics.
+
+**Key Capabilities:**
+- ✅ Single response evaluation
+- ✅ Batch evaluation from Excel/JSON
+- ✅ Real-time scoring with explanations
+- ✅ Multiple verdict types
+- ✅ Export results as Excel/CSV
+
+---
+
+## 💻 Technology Stack
+
+### **Frontend Stack**
+
+**Framework & Language:**
+- **React 18** - UI framework for building interactive interfaces
+- **TypeScript** - Type-safe JavaScript for better code quality
+- **Vite** - Lightning-fast build tool and dev server
+
+**Key Libraries:**
+- **Axios** - HTTP client for API requests (with 20-minute timeout for long evaluations)
+- **React Hooks** - useState, useEffect for state management
+- **CSS3** - Custom styling with theme variables
+
+**Build & Dev Tools:**
+- **Node.js** - JavaScript runtime
+- **npm** - Package manager
+- **ES Modules** - Modern JavaScript module system
+
+**Ports:**
+- Frontend Dev Server: **5173**
+- Backend API: **3002**
+- Python Service: **8000**
+
+### **Backend Stack**
+
+**Framework & Language:**
+- **Express.js** - Minimal Node.js web framework
+- **TypeScript** - Type-safe backend development
+- **Node.js** - JavaScript runtime
+
+**Key Libraries:**
+- **axios** - HTTP client for calling Python service
+- **cors** - Cross-Origin Resource Sharing middleware
+- **dotenv** - Environment variable management
+- **express.json()** - Built-in JSON parser
+
+**Architecture:**
+- **Middleware-based** - Request/response processing pipeline
+- **Route-based** - Separate route files for different endpoints
+- **Service-based** - Separation of concerns with evalClient service
+
+**Ports:**
+- Backend Server: **3002**
+- Connects to Python Service: **8000**
+
+### **Python Service Stack**
+
+**Framework & Language:**
+- **Python 3.8+** - Server language
+- **FastAPI** - Modern, fast Python web framework
+- **Uvicorn** - ASGI server for running FastAPI
+- **Pydantic** - Data validation and settings
+
+**Key Libraries:**
+- **DeepEval** - LLM evaluation metrics library
+  - ContextualRecallMetric
+  - ContextualPrecisionMetric
+  - FaithfulnessMetric
+  - AnswerRelevancyMetric
+  - And more...
+- **OpenAI** - LLM API client for Groq/OpenAI models
+- **python-dotenv** - Environment variable management
+
+**Ports:**
+- Python Service: **8000**
+- Receives requests from Backend: **3002**
+
+---
+
+## ⚡ Quick Start
+
+### **1. Prerequisites**
+```bash
+# Required software:
+- Node.js v16+ (for frontend & backend)
+- Python 3.8+ (for evaluation service)
+- pip (Python package manager)
+- npm (Node package manager)
+```
+
+### **2. Install Dependencies**
+```bash
+# Install all dependencies
+npm run setup:workspaces
+
+# Or manually:
+cd frontend && npm install
+cd ../backend && npm install
+cd ../llm-eval-providers && pip install -r requirements.txt
+```
+
+### **3. Environment Setup**
+Create `.env` file in project root:
+```env
+GROQ_API_KEY=your-groq-api-key-here
+OPENAI_API_KEY=your-openai-api-key-here
+EVAL_MODEL=llama-3.3-70b-versatile
+NODE_ENV=development
+PORT=3002
+```
+
+### **4. Start All Services** (in separate terminals)
+
+**Terminal 1 - Frontend:**
+```bash
+cd frontend && npm run dev
+# Runs on http://localhost:5173
+```
+
+**Terminal 2 - Backend:**
+```bash
+cd backend && npm run dev
+# Runs on http://localhost:3002
+```
+
+**Terminal 3 - Python Service:**
+```bash
+cd llm-eval-providers && python deepeval_server.py
+# Runs on http://localhost:8000
+```
+
+### **5. Access Application**
+```
+Open browser: http://localhost:5173
+```
+
+---
+
+## 🔍 How It Works
+
+### **3-Layer Architecture**
+
+```
+┌──────────────────────────────────────┐
+│   Layer 1: USER INTERFACE (React)    │
+│   - User fills form                  │
+│   - Validates input locally          │
+│   - Displays results                 │
+└────────────────┬─────────────────────┘
+                 │ HTTP POST
+                 │ JSON payload
+                 ▼
+┌──────────────────────────────────────┐
+│  Layer 2: API SERVER (Express.js)    │
+│  - Validates request                 │
+│  - Checks metric requirements        │
+│  - Routes to Python service          │
+└────────────────┬─────────────────────┘
+                 │ HTTP POST
+                 │ Validated payload
+                 ▼
+┌──────────────────────────────────────┐
+│   Layer 3: EVALUATOR (Python)        │
+│   - Runs DeepEval metrics            │
+│   - Calculates scores                │
+│   - Returns verdict & explanation    │
+└──────────────────────────────────────┘
+```
+
+---
+
+## 🎨 Frontend Architecture & Functions
+
+### **Frontend Technology Details**
+
+**Build System: Vite**
+- ⚡ Instant HMR (Hot Module Replacement)
+- 🚀 Lightning-fast build times
+- 📦 Optimized production bundles
+
+**State Management: React Hooks**
+- `useState()` - Manage form state, loading, errors
+- `useCallback()` - Memoize functions
+- `useEffect()` - Side effects (API calls)
+
+**Type System: TypeScript**
+- Strict type checking
+- Interface definitions for data structures
+- Better IDE autocomplete
+
+### **Frontend File Structure**
+
+```
+frontend/src/
+├── components/
+│   ├── LLMEval/                  # Single evaluation feature
+│   │   ├── LLMEvalForm.tsx       # Main form container
+│   │   ├── ResponsePanel.tsx     # Results display
+│   │   ├── ContextList.tsx       # Dynamic context management
+│   │   ├── types.ts              # TypeScript interfaces
+│   │   └── validation.ts         # Input validation functions
+│   │
+│   └── BatchEval/                # Batch evaluation feature
+│       ├── ExcelUpload.tsx       # File upload component
+│       ├── DatasetPreview.tsx    # Preview before evaluation
+│       ├── BatchEvaluationResults.tsx  # Results table
+│       ├── ReportGenerator.tsx   # Export functionality
+│       ├── JsonConverter.tsx     # Excel to JSON conversion
+│       └── types.ts              # Batch-specific types
+│
+├── services/
+│   └── llmEvalApi.ts             # API communication layer
+│
+├── pages/
+│   ├── LLMEvalPage.tsx           # Single eval page wrapper
+│   └── BatchEvalPage.tsx         # Batch eval page wrapper
+│
+├── styles/
+│   ├── app-nav.css               # Navigation styling
+│   ├── batch-eval.css            # Batch eval styles
+│   └── testleaf-theme.css        # Theme & global styles
+│
+├── App.tsx                       # Main app component
+└── main.tsx                      # Vite entry point
+```
+
+### **Key Frontend Functions**
+
+#### **1. validation.ts** - Input Validation Module
+
+```typescript
+/**
+ * Validates entire form based on selected metric
+ * @param formData - Form state with metric, query, output, context
+ * @returns Object with validation errors (empty = valid)
+ * 
+ * What it checks:
+ * - Is metric selected?
+ * - Is query filled?
+ * - Is output provided (if metric requires it)?
+ * - Is context filled (if metric requires it)?
+ * - Is expected_output filled (if metric requires it)?
+ */
+export const validateForm = (formData: FormState): FormValidationErrors => {
+  // Checks metric-specific requirements
+  // Returns errors object: { query?: "error", output?: "error", ... }
+}
+
+/**
+ * Checks if errors object is empty (form is valid)
+ * @param errors - FormValidationErrors object
+ * @returns boolean - true if no errors, false if errors exist
+ */
+export const isFormValid = (errors: FormValidationErrors): boolean => {
+  return Object.keys(errors).length === 0;
+}
+
+/**
+ * Returns list of available metrics for DeepEval provider
+ * @returns Array of metric names
+ * 
+ * Returns: [
+ *   'faithfulness',
+ *   'answer_relevancy', 
+ *   'contextual_precision',
+ *   'contextual_recall',
+ *   'contextual_relevancy',
+ *   'pii_leakage',
+ *   'bias',
+ *   'hallucination'
+ * ]
+ */
+export const getMetricsForProvider = (): string[] => {
+  // Hardcoded list of supported metrics
+}
+
+/**
+ * Determines if "Expected Output" field should be shown
+ * @param metric - Selected metric name
+ * @returns boolean - true if field should be visible
+ * 
+ * Shows for: contextual_precision, contextual_recall
+ * Hides for: all others
+ */
+export const shouldShowExpectedOutput = (metric: string): boolean => {
+  return metric === 'contextual_precision' || metric === 'contextual_recall';
+}
+
+/**
+ * Determines if "LLM Output" field should be shown
+ * @param metric - Selected metric name
+ * @returns boolean - true if field should be visible
+ * 
+ * Hides for: contextual_precision, contextual_recall (context quality metrics)
+ * Shows for: all others (response quality metrics)
+ */
+export const shouldShowLLMOutput = (metric: string): boolean => {
+  const metricsNotUsingOutput = ['contextual_precision', 'contextual_recall'];
+  return !metricsNotUsingOutput.includes(metric);
+}
+
+/**
+ * Determines if "Context" field is required
+ * @param metric - Selected metric name
+ * @returns boolean - true if context is mandatory
+ * 
+ * Required for: faithfulness, contextual_precision, 
+ *               contextual_recall, hallucination
+ * Optional for: answer_relevancy, pii_leakage, bias, 
+ *               contextual_relevancy
+ */
+export const isContextRequired = (metric: string): boolean => {
+  const metricsRequiringContext = [
+    'faithfulness', 
+    'contextual_precision', 
+    'contextual_recall', 
+    'hallucination'
+  ];
+  return metricsRequiringContext.includes(metric);
+}
+```
+
+**Why it matters:** Prevents invalid requests from reaching backend
+
+---
+
+#### **2. llmEvalApi.ts** - API Communication Layer
+
+```typescript
+/**
+ * Main function to evaluate LLM response using DeepEval
+ * @param formData - Form state with all evaluation data
+ * @returns Promise<LLMEvalResponse> - Evaluation results
+ * 
+ * What it does:
+ * 1. Filters out empty context items
+ * 2. Makes HTTP POST request to backend
+ * 3. Handles errors and formats them
+ * 4. Returns response to React component
+ * 
+ * Request example:
+ * POST http://localhost:3002/api/eval-only
+ * {
+ *   metric: "faithfulness",
+ *   query: "What is AI?",
+ *   output: "AI is artificial intelligence...",
+ *   context: ["AI definition..."],
+ *   expected_output: undefined
+ * }
+ */
+export const evaluateWithDeepEval = async (
+  formData: FormState
+): Promise<LLMEvalResponse> => {
+  // 1. Build payload
+  // 2. Send POST request
+  // 3. Handle errors
+  // 4. Return response
+}
+
+/**
+ * Universal evaluation function (currently uses DeepEval)
+ * @param formData - Form state
+ * @returns Promise<LLMEvalResponse> - Evaluation results
+ * 
+ * Future: Can be extended to support multiple providers
+ */
+export const evaluateLLM = async (
+  formData: FormState
+): Promise<LLMEvalResponse> => {
+  return evaluateWithDeepEval(formData);
+}
+```
+
+**Configuration:**
+```typescript
+const backendInstance = axios.create({
+  baseURL: 'http://localhost:3002',     // Backend URL
+  timeout: 1200000,                      // 20 minutes (for large evaluations)
+  headers: {
+    'Content-Type': 'application/json',  // Always send JSON
+  },
+});
+```
+
+**Why it matters:** Handles all communication between frontend and backend
+
+---
+
+#### **3. LLMEvalForm.tsx** - Main Form Component
+
+```typescript
+/**
+ * React Component: Main evaluation form
+ * 
+ * State Management:
+ * - formState: Current form data (metric, query, output, context, expected_output)
+ * - response: Evaluation results from backend
+ * - isLoading: Loading state during evaluation
+ * - errors: Validation errors for display
+ * - apiError: API error messages
+ * 
+ * Key Handlers:
+ * - handleMetricChange(): Update metric dropdown
+ * - handleQueryChange(): Update query input
+ * - handleOutputChange(): Update output textarea
+ * - handleContextChange(): Update context array
+ * - handleExpectedOutputChange(): Update expected output
+ * - handleAddContext(): Add new context field
+ * - handleRemoveContext(): Remove context field
+ * - handleEvaluate(): Submit form
+ * 
+ * Logic Flow:
+ * 1. User changes input → handler updates state
+ * 2. Component re-renders with new values
+ * 3. On submit: validates form
+ * 4. If valid: calls evaluateLLM() API
+ * 5. Shows loading spinner
+ * 6. Receives response: displays results
+ * 7. If error: shows error message
+ * 
+ * Dynamic Field Visibility:
+ * - Shows/hides "Expected Output" based on metric
+ * - Shows/hides "Output" based on metric
+ * - Shows/hides "Context" requirement indicator based on metric
+ */
+export const LLMEvalForm: React.FC<LLMEvalFormProps> = ({onEvaluate}) => {
+  // Form state, validation, API calls, UI rendering
+}
+```
+
+**Component Props:**
+```typescript
+interface LLMEvalFormProps {
+  onEvaluate?: (formData: FormState) => void;  // Optional callback on evaluation
+}
+```
+
+**Rendered Form Fields:**
+```
+┌─ Metric Selector ─────┐
+│ Dropdown with all     │
+│ 8 metrics             │
+├───────────────────────┤
+│ Query Input ✓         │
+│ (Always visible)      │
+├───────────────────────┤
+│ LLM Output Text Area  │
+│ (Hidden for context   │
+│  quality metrics)     │
+├───────────────────────┤
+│ Context List          │
+│ (Dynamic, add/remove) │
+├───────────────────────┤
+│ Expected Output       │
+│ (Only for contextual  │
+│  precision/recall)    │
+├───────────────────────┤
+│ [Evaluate] Button     │
+└───────────────────────┘
+```
+
+**Why it matters:** Core user interaction point
+
+---
+
+#### **4. ResponsePanel.tsx** - Results Display
+
+```typescript
+/**
+ * React Component: Displays evaluation results
+ * 
+ * Props:
+ * - response: LLMEvalResponse object from backend
+ * 
+ * Displays:
+ * - Score (0-1 value)
+ * - Verdict (FAITHFUL, RELEVANT, HIGH_RECALL, etc.)
+ * - Explanation (detailed reasoning)
+ * - Metric name
+ * - Query and output (if provided)
+ * 
+ * Styling:
+ * - Color codes by verdict (green = good, red = bad, yellow = warning)
+ * - Large, readable fonts
+ * - Scrollable for long explanations
+ */
+export const ResponsePanel: React.FC<ResponsePanelProps> = ({response}) => {
+  // Render score, verdict, explanation
+}
+```
+
+**Why it matters:** Shows evaluation results to user
+
+---
+
+#### **5. ContextList.tsx** - Context Management
+
+```typescript
+/**
+ * React Component: Manages list of context items
+ * 
+ * Features:
+ * - Add new context field (+ Add Context button)
+ * - Remove context field (✕ Remove button)
+ * - Edit context text (textarea)
+ * - Minimum 1 item, maximum 10 items
+ * - Shows count of non-empty items
+ * 
+ * Props:
+ * - context: Array of context strings
+ * - onContextChange: Callback when context changes
+ * - required: Whether context is required for metric
+ * 
+ * Display:
+ * ┌─────────────────────────────────┐
+ * │ 📄 Context Items (2 of 3)       │
+ * ├─────────────────────────────────┤
+ * │ [Textarea 1] [✕ Remove]         │
+ * │ [Textarea 2] [✕ Remove]         │
+ * │ [Textarea 3] [✕ Remove]         │
+ * ├─────────────────────────────────┤
+ * │ [+ Add Context]                 │
+ * └─────────────────────────────────┘
+ */
+export const ContextList: React.FC<ContextListProps> = ({
+  context,
+  onContextChange,
+  required
+}) => {
+  // Render context fields
+}
+```
+
+**Why it matters:** Easy context management UI
+
+---
+
+### **Frontend Data Types**
+
+```typescript
+// From types.ts
+type MetricOption = 
+  | 'faithfulness'
+  | 'answer_relevancy'
+  | 'contextual_precision'
+  | 'contextual_recall'
+  | 'contextual_relevancy'
+  | 'pii_leakage'
+  | 'bias'
+  | 'hallucination';
+
+interface FormState {
+  metric: MetricOption;
+  query: string;
+  output: string;
+  context: string[];
+  expected_output?: string;
+}
+
+interface LLMEvalResponse {
+  metric?: MetricOption;
+  metric_name?: string;
+  query?: string;
+  output?: string;
+  context?: string[];
+  score: number;           // 0-1
+  verdict?: string;        // FAITHFUL, RELEVANT, etc.
+  explanation: string;     // Detailed explanation
+}
+```
+
+---
+
+## 🏭 Backend Architecture & Functions
+
+### **Backend Technology Details**
+
+**Web Framework: Express.js**
+- Lightweight and fast
+- Middleware-based architecture
+- Built-in routing system
+- Great TypeScript support
+
+**Server Runtime: Node.js**
+- Single-threaded event loop
+- Asynchronous I/O
+- Non-blocking operations
+
+**Type System: TypeScript**
+- Strict type checking
+- Interface definitions
+- Compile-time error detection
+
+### **Backend File Structure**
+
+```
+backend/src/
+├── index.ts                    # Express server setup & middleware
+├── routes/
+│   └── evalRoutes.ts          # POST /api/eval-only endpoint
+├── services/
+│   └── evalClient.ts          # Calls Python service
+└── config/
+    └── env.ts                 # Environment variable setup
+```
+
+### **Key Backend Functions**
+
+#### **1. index.ts** - Server Setup & Configuration
+
+```typescript
+/**
+ * Express Application Setup
+ * 
+ * What it does:
+ * 1. Creates Express app instance
+ * 2. Loads environment variables from .env
+ * 3. Sets up middleware
+ * 4. Mounts routes
+ * 5. Starts server on port 3002
+ */
+
+// Middleware Stack:
+app.use(express.json());           // Parse JSON requests
+app.use(express.urlencoded({...})); // Parse form data
+app.use(cors());                    // Enable cross-origin requests
+app.use(loggingMiddleware);        // Log all requests
+
+// Routes:
+app.use('/api', evalRoutes);        // Mount evaluation routes at /api
+app.get('/health', ...);            // Health check endpoint
+app.get('/api/status', ...);        // Status endpoint
+
+// Server Start:
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
+```
+
+**Middleware explained:**
+- `express.json()` - Parses `Content-Type: application/json`
+- `cors()` - Allows requests from frontend (http://localhost:5173)
+- Custom logging - Logs timestamp, method, path for debugging
+
+**Why it matters:** Foundation for all backend operations
+
+---
+
+#### **2. evalRoutes.ts** - Main Evaluation Endpoint
+
+```typescript
+/**
+ * POST /api/eval-only
+ * 
+ * Main endpoint for evaluation requests
+ * 
+ * REQUEST BODY:
+ * {
+ *   metric?: string,              // Default: "answer_relevancy"
+ *   query: string,                // User's question
+ *   output: string,               // LLM's response (not always required)
+ *   context?: string | string[],  // Background documents
+ *   expected_output?: string,     // Reference answer (for contextual metrics)
+ *   provider?: string             // "groq" or "openai" (default: "groq")
+ * }
+ */
+router.post('/eval-only', asyncHandler(async (req: Request, res: Response) => {
+  /**
+   * Step 1: Extract request body
+   */
+  const { query, output, context, metric, expected_output } = req.body;
+  
+  /**
+   * Step 2: Determine effective metric (default if not provided)
+   */
+  const effectiveMetric = metric || "answer_relevancy";
+  
+  /**
+   * Step 3: VALIDATION - Check metric-specific requirements
+   * 
+   * Different metrics have different requirements:
+   * - faithfulness: needs query + output + context
+   * - answer_relevancy: needs query + output
+   * - contextual_precision: needs query + context + expected_output
+   * - contextual_recall: needs context + expected_output
+   * - contextual_relevancy: needs query + output
+   * - pii_leakage: needs query + output
+   * - bias: needs query + output
+   * - hallucination: needs query + output + context
+   */
+  
+  // Metrics that DON'T require output field:
+  const metricsNotRequiringOutput = [
+    'contextual_precision',
+    'contextual_recall'
+  ];
+  
+  // Validate required fields exist
+  if (!metricsNotRequiringOutput.includes(effectiveMetric) && !output) {
+    return res.status(400).json({
+      error: "Missing required field: output"
+    });
+  }
+  
+  // Validate metric-specific requirements
+  if (effectiveMetric === 'pii_leakage' && !query) {
+    return res.status(400).json({
+      error: "Missing required field: query (required for pii_leakage metric)"
+    });
+  }
+  
+  // ... more validation for other metrics ...
+  
+  /**
+   * Step 4: BUILD PAYLOAD for Python service
+   */
+  const evalParams = {
+    metric: effectiveMetric,
+    provider: req.body.provider || "groq",
+    output: output,
+    query: query,
+    context: Array.isArray(context) ? context : (context ? [context] : []),
+    expected_output: expected_output
+  };
+  
+  /**
+   * Step 5: CALL Python service
+   */
+  const result = await evalWithFields(evalParams);
+  
+  /**
+   * Step 6: RETURN response to frontend
+   */
+  return res.json({
+    metric: effectiveMetric,
+    score: result.score,
+    verdict: result.verdict,
+    explanation: result.explanation,
+    query: query,
+    output: output,
+    context: Array.isArray(context) ? context : (context ? [context] : [])
+  });
+}));
+```
+
+**Response Status Codes:**
+- `200 OK` - Successful evaluation
+- `400 Bad Request` - Missing required fields or invalid input
+- `500 Internal Server Error` - Backend or Python service error
+
+**Why it matters:** Gateway for all evaluation requests
+
+---
+
+#### **3. evalClient.ts** - Python Service Communication
+
+```typescript
+/**
+ * Communicates with Python DeepEval service
+ * Acts as the "courier" between backend and Python
+ */
+
+export async function evalWithFields(params: {
+  query?: string;
+  context?: string[];
+  output?: string;
+  expected_output?: string;
+  metric?: string;
+  provider?: string;
+}): Promise<EvalResult> {
+  
+  /**
+   * Step 1: VALIDATION (safety check)
+   * Make sure output is provided unless metric doesn't need it
+   */
+  const metricsNotRequiringOutput = [
+    'contextual_precision',
+    'contextual_recall'
+  ];
+  
+  if (!metricsNotRequiringOutput.includes(params.metric!) && !params.output) {
+    throw new Error("output field is required");
+  }
+  
+  /**
+   * Step 2: BUILD PAYLOAD for Python service
+   * Include only fields that are provided
+   */
+  const payload: any = {
+    metric: params.metric || "faithfulness",
+  };
+  
+  // Add optional fields
+  if (params.output) payload.output = params.output;
+  if (params.query) payload.query = params.query;
+  if (params.context) payload.context = params.context;
+  if (params.expected_output) payload.expected_output = params.expected_output;
+  if (params.provider) payload.provider = params.provider;
+  
+  /**
+   * Step 3: MAKE HTTP REQUEST to Python service
+   * URL: http://localhost:8000/eval
+   * Method: POST
+   * Body: JSON payload
+   */
+  console.log(`evalWithFields - Sending payload:`, 
+    JSON.stringify(payload, null, 2));
+  
+  try {
+    const res = await axios.post<EvalResult>(
+      ENV.DEEPEVAL_URL,  // http://localhost:8000/eval
+      payload
+    );
+    
+    return res.data;  // {metric_name, score, verdict, explanation}
+    
+  } catch (err: unknown) {
+    // ERROR HANDLING
+    if (axios.isAxiosError(err)) {
+      
+      // Connection refused (Python service not running)
+      if ((err as any).code === "ECONNREFUSED") {
+        throw new Error(
+          `DeepEval service unavailable at ${ENV.DEEPEVAL_URL}. Is it running?`
+        );
+      }
+      
+      // Python service returned error
+      const errorDetail = err.response?.data?.detail || err.message;
+      throw new Error(
+        `DeepEval Error (${err.response?.status || 'unknown'}): ${errorDetail}`
+      );
+    }
+    
+    throw err;
+  }
+}
+```
+
+**Why it matters:** Bridges backend and Python service
+
+---
+
+#### **4. env.ts** - Environment Configuration
+
+```typescript
+/**
+ * Loads and validates environment variables
+ * 
+ * Environment Variables Used:
+ * - DEEPEVAL_URL: http://localhost:8000/eval (Python service endpoint)
+ * - PORT: 3002 (backend server port)
+ * - NODE_ENV: "development" or "production"
+ * - GROQ_API_KEY: API key for Groq LLM service
+ * - OPENAI_API_KEY: API key for OpenAI service
+ */
+
+import dotenv from 'dotenv';
+import path from 'path';
+
+dotenv.config({
+  path: path.resolve(__dirname, '../../.env')  // Load from root .env
+});
+
+export const ENV = {
+  DEEPEVAL_URL: process.env.DEEPEVAL_URL || 'http://localhost:8000/eval',
+  PORT: process.env.PORT || 3002,
+  NODE_ENV: process.env.NODE_ENV || 'development',
+};
+```
+
+**Why it matters:** Centralized configuration management
+
+---
+
+### **Backend Request/Response Flow**
+
+```
+1. Frontend Sends:
+   POST http://localhost:3002/api/eval-only
+   {
+     "metric": "faithfulness",
+     "query": "What is AI?",
+     "output": "AI is artificial intelligence...",
+     "context": ["AI definition..."]
+   }
+
+2. evalRoutes.ts Receives:
+   ✓ Extracts query, output, context, metric
+   ✓ Validates fields
+   ✓ Converts context to array if string
+   ✓ Builds evalParams object
+
+3. evalClient.ts Processes:
+   ✓ Double-checks validation
+   ✓ Builds payload for Python
+   ✓ Makes HTTP POST to Python service
+   ✓ Waits for response
+
+4. Python Service Returns:
+   {
+     "metric_name": "faithfulness",
+     "score": 0.92,
+     "verdict": "FAITHFUL",
+     "explanation": "The response accurately reflects..."
+   }
+
+5. evalClient.ts Returns to evalRoutes.ts
+
+6. evalRoutes.ts Formats & Returns to Frontend:
+   {
+     "metric": "faithfulness",
+     "score": 0.92,
+     "verdict": "FAITHFUL",
+     "explanation": "...",
+     "query": "What is AI?",
+     "output": "AI is artificial intelligence...",
+     "context": ["AI definition..."]
+   }
+
+7. Frontend Displays in ResponsePanel
+```
+
+---
+
+## 🐍 Python Service Details
+
+### **Python Technology Stack**
+
+**Web Framework: FastAPI**
+- Modern, fast Python web framework
+- Automatic API documentation
+- Built-in data validation with Pydantic
+- Async/await support
+
+**Server: Uvicorn**
+- ASGI (Asynchronous Server Gateway Interface) server
+- High performance
+- Handles async operations efficiently
+
+**Evaluation Engine: DeepEval**
+- LLM evaluation library
+- Multiple pre-built metrics
+- Uses LLM-as-a-judge approach
+- Supports custom LLM providers (Groq, OpenAI, etc.)
+
+### **Python File Structure**
+
+```
+llm-eval-providers/
+├── deepeval_server.py          # Main FastAPI server
+├── requirements.txt            # Python dependencies
+└── .env                        # API keys
+```
+
+### **Key Python Functions**
+
+#### **1. FastAPI App Setup**
+
+```python
+"""
+Deepeval FastAPI Sidecar Server
+Runs separately from Node.js and handles LLM evaluations
+"""
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+
+app = FastAPI(
+    title="Deepeval Evaluation Service",
+    description="FastAPI for LLM evaluation using Deepeval",
+    version="1.0.0"
+)
+
+# Enable CORS - Allow requests from frontend/backend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],        # Allow all origins
+    allow_credentials=True,
+    allow_methods=["*"],        # Allow all HTTP methods
+    allow_headers=["*"],        # Allow all headers
+)
+```
+
+**Why it matters:** Sets up server to accept requests from backend
+
+---
+
+#### **2. MetricEvaluator Class** - Main Evaluation Engine
+
+```python
+class MetricEvaluator:
+    """
+    Handles all metric evaluations using DeepEval
+    """
+    
+    SUPPORTED_METRICS = {
+        "faithfulness": "Evaluates if output is faithful to context",
+        "contextual_precision": "Evaluates if context is relevant",
+        "contextual_recall": "Evaluates if context contains all needed info",
+        "contextual_relevancy": "Evaluates how relevant output is to query",
+        "answer_relevancy": "Evaluates if output answers the query",
+        "pii_leakage": "Detects personally identifiable information",
+        "bias": "Detects bias in output",
+        "hallucination": "Detects if output contains false information",
+    }
+    
+    def __init__(self, api_key: str, model_name: str = "llama-3.3-70b-versatile"):
+        """
+        Initialize evaluator with LLM for evaluation
+        
+        Args:
+            api_key: API key for LLM service (Groq or OpenAI)
+            model_name: Which LLM to use for evaluation
+        """
+        if not api_key:
+            raise ValueError("Valid API key is required")
+        
+        self.model_name = model_name
+        # Create LLM instance (Groq or OpenAI)
+        self.model = GroqModel(api_key=api_key, model=model_name)
+    
+    def evaluate(self, metric_name: str, params) -> tuple[float, str]:
+        """
+        Main evaluation dispatcher
+        Routes to correct metric function based on metric_name
+        
+        Args:
+            metric_name: Which metric to use
+            params: Query, output, context, etc.
+            
+        Returns:
+            Tuple of (score, explanation)
+        """
+        
+        # Create test case from parameters
+        test_case = self.create_test_case(
+            query=params.get('query'),
+            context=params.get('context'),
+            output=params.get('output'),
+            expected_output=params.get('expected_output')
+        )
+        
+        # Route to correct metric function
+        if metric_name == "faithfulness":
+            return self.evaluate_faithfulness(test_case)
+        elif metric_name == "answer_relevancy":
+            return self.evaluate_answer_relevancy(test_case)
+        elif metric_name == "contextual_recall":
+            return self.evaluate_contextual_recall(test_case)
+        elif metric_name == "contextual_relevancy":
+            return self.evaluate_contextual_relevancy(test_case)
+        # ... more metrics ...
+        else:
+            raise ValueError(f"Metric {metric_name} not implemented")
+```
+
+---
+
+#### **3. Individual Metric Functions**
+
+```python
+def evaluate_faithfulness(self, test_case) -> tuple[float, str]:
+    """
+    Evaluates if LLM output is faithful to provided context
+    
+    What it does:
+    1. Extracts claims/facts from output
+    2. Checks each claim against context
+    3. Returns: faithful/not_faithful/idk for each claim
+    4. Calculates overall faithfulness score
+    
+    strict_mode=False: Natural LLM judgment (not strict rules)
+    include_reason=True: Include detailed explanation
+    
+    Returns:
+        score: 0-1 (higher = more faithful)
+        explanation: Why it's faithful/not faithful
+    """
+    from deepeval.metrics.faithfulness.faithfulness import FaithfulnessMetric
+    
+    # Validate required fields
+    if not test_case.input:
+        raise ValueError("faithfulness requires 'query' field")
+    if not test_case.actual_output:
+        raise ValueError("faithfulness requires 'output' field")
+    if not test_case.retrieval_context:
+        raise ValueError("faithfulness requires 'context' field")
+    
+    # Create metric instance
+    metric = FaithfulnessMetric(
+        model=self.model,              # Use the evaluator LLM
+        include_reason=True,           # Include detailed explanation
+        async_mode=False,              # Synchronous (wait for result)
+        strict_mode=False              # Natural judgment
+    )
+    
+    # Measure the test case
+    score = metric.measure(test_case)  # Returns 0-1
+    explanation = metric.reason or "Default explanation"
+    
+    return score, explanation  # (0.92, "Output is faithful to context")
+```
+
+```python
+def evaluate_contextual_relevancy(self, test_case) -> tuple[float, str]:
+    """
+    Evaluates how relevant the output is to the query
+    
+    What it does:
+    1. Takes query and output
+    2. Judges how well output addresses query
+    3. Returns relevancy score
+    
+    Returns:
+        score: 0-1 (higher = more relevant)
+        explanation: Why output is/isn't relevant to query
+    """
+    from deepeval.metrics.answer_relevancy.answer_relevancy import AnswerRelevancyMetric
+    
+    # Validate required fields
+    if not test_case.input:
+        raise ValueError("contextual_relevancy requires 'query' field")
+    if not test_case.actual_output:
+        raise ValueError("contextual_relevancy requires 'output' field")
+    
+    # Create metric instance (using AnswerRelevancyMetric)
+    metric = AnswerRelevancyMetric(
+        model=self.model,
+        include_reason=True,
+        async_mode=False,
+        strict_mode=False
+    )
+    
+    # Measure the test case
+    score = metric.measure(test_case)
+    explanation = metric.reason or "Output relevance evaluation"
+    
+    return score, explanation
+```
+
+---
+
+#### **4. Verdict Generation Function**
+
+```python
+def get_verdict_for_metric(metric_name: str, score: float) -> str:
+    """
+    Converts numeric score (0-1) to human-readable verdict
+    
+    Different metrics have different verdict ranges:
+    
+    Args:
+        metric_name: Which metric was evaluated
+        score: Numeric score from 0 to 1
+        
+    Returns:
+        Verdict string based on metric type
+    """
+    
+    # Faithfulness verdicts
+    if metric_name == "faithfulness":
+        if score >= 0.75:
+            return "FAITHFUL"           # ✅ Good
+        elif score >= 0.3:
+            return "PARTIAL"            # ⚠️  Okay
+        else:
+            return "NOT_FAITHFUL"       # ❌ Bad
+    
+    # Answer Relevancy verdicts
+    elif metric_name == "answer_relevancy":
+        if score >= 0.75:
+            return "RELEVANT"           # ✅ Good
+        elif score >= 0.3:
+            return "PARTIAL"            # ⚠️  Okay
+        else:
+            return "NOT_RELEVANT"       # ❌ Bad
+    
+    # Contextual Recall verdicts
+    elif metric_name == "contextual_recall":
+        if score >= 0.75:
+            return "HIGH_RECALL"        # ✅ Good
+        elif score >= 0.5:
+            return "PARTIAL_RECALL"     # ⚠️  Okay
+        else:
+            return "LOW_RECALL"         # ❌ Bad
+    
+    # Contextual Relevancy verdicts
+    elif metric_name == "contextual_relevancy":
+        if score >= 0.75:
+            return "HIGHLY_RELEVANT"    # ✅ Good
+        elif score >= 0.5:
+            return "PARTIALLY_RELEVANT" # ⚠️  Okay
+        else:
+            return "LOW_RELEVANCY"      # ❌ Bad
+    
+    # ... more metrics ...
+```
+
+---
+
+#### **5. Main API Endpoint**
+
+```python
+@app.post("/eval")
+async def evaluate(request: EvalRequest) -> EvalResponse:
+    """
+    Main evaluation endpoint
+    
+    Receives evaluation request and returns results
+    
+    Input (EvalRequest):
+    {
+        "metric": "faithfulness",
+        "query": "What is AI?",
+        "output": "AI is...",
+        "context": ["AI definition..."],
+        "expected_output": null,
+        "provider": "groq"
+    }
+    
+    Output (EvalResponse):
+    {
+        "results": [{
+            "metric_name": "faithfulness",
+            "score": 0.92,
+            "verdict": "FAITHFUL",
+            "explanation": "..."
+        }]
+    }
+    """
+    
+    try:
+        # Determine which evaluator to use (Groq or OpenAI)
+        evaluator = init_evaluator_from_env()
+        
+        # Evaluate
+        score, explanation = evaluator.evaluate(
+            metric_name=request.metric,
+            params={
+                'query': request.query,
+                'output': request.output,
+                'context': request.context,
+                'expected_output': request.expected_output
+            }
+        )
+        
+        # Get verdict from score
+        verdict = get_verdict_for_metric(request.metric, score)
+        
+        # Return response
+        return EvalResponse(
+            results=[
+                MetricResult(
+                    metric_name=request.metric,
+                    score=score,
+                    verdict=verdict,
+                    explanation=explanation
+                )
+            ]
+        )
+        
+    except Exception as e:
+        # Error handling
+        return EvalResponse(
+            results=[
+                MetricResult(
+                    metric_name=request.metric,
+                    error=str(e)
+                )
+            ]
+        )
+```
+
+**Why it matters:** Handles actual evaluation using DeepEval
+
+---
+
+### **Python Data Models (Pydantic)**
+
+```python
+class EvalRequest(BaseModel):
+    """Request from backend"""
+    query: Optional[str] = None
+    context: Optional[List[str]] = None
+    output: Optional[str] = None
+    expected_output: Optional[str] = None
+    metric: Optional[str] = "faithfulness"
+    provider: Optional[str] = "groq"
+
+class MetricResult(BaseModel):
+    """Result for one metric"""
+    metric_name: str
+    score: Optional[float] = None
+    verdict: Optional[str] = None
+    explanation: Optional[str] = None
+    error: Optional[str] = None
+
+class EvalResponse(BaseModel):
+    """Response to backend"""
+    results: List[MetricResult]
+    metric_name: Optional[str] = None
+    score: Optional[float] = None
+    explanation: Optional[str] = None
+    error: Optional[str] = None
+```
+
+---
+
+## 📋 Complete Function Reference
+
+### **Frontend Functions**
+
+| Function | File | Input | Output | Purpose |
+|----------|------|-------|--------|---------|
+| `validateForm()` | validation.ts | FormState | FormValidationErrors | Validate entire form based on metric |
+| `isFormValid()` | validation.ts | FormValidationErrors | boolean | Check if form has no errors |
+| `getMetricsForProvider()` | validation.ts | none | string[] | Get available metrics list |
+| `shouldShowLLMOutput()` | validation.ts | metric: string | boolean | Show/hide output field |
+| `shouldShowExpectedOutput()` | validation.ts | metric: string | boolean | Show/hide expected_output field |
+| `isContextRequired()` | validation.ts | metric: string | boolean | Check if context is required |
+| `evaluateLLM()` | llmEvalApi.ts | FormState | Promise\<LLMEvalResponse> | Main evaluation function |
+| `evaluateWithDeepEval()` | llmEvalApi.ts | FormState | Promise\<LLMEvalResponse> | Evaluate using DeepEval |
+| `LLMEvalForm` | LLMEvalForm.tsx | props | JSX | Main form component |
+| `ResponsePanel` | ResponsePanel.tsx | response | JSX | Display results |
+| `ContextList` | ContextList.tsx | context, callbacks | JSX | Manage context list |
+
+### **Backend Functions**
+
+| Function | File | Input | Output | Purpose |
+|----------|------|-------|--------|---------|
+| `POST /api/eval-only` | evalRoutes.ts | JSON body | JSON response | Main evaluation endpoint |
+| `evalWithFields()` | evalClient.ts | params object | Promise\<EvalResult> | Send to Python service |
+| `GET /health` | index.ts | none | JSON | Health check |
+| `GET /api/status` | index.ts | none | JSON | Server status |
+
+### **Python Functions**
+
+| Function | File | Input | Output | Purpose |
+|----------|------|-------|--------|---------|
+| `POST /eval` | deepeval_server.py | EvalRequest | EvalResponse | Main evaluation endpoint |
+| `evaluate_faithfulness()` | deepeval_server.py | test_case | (score, explanation) | Evaluate faithfulness |
+| `evaluate_answer_relevancy()` | deepeval_server.py | test_case | (score, explanation) | Evaluate answer relevancy |
+| `evaluate_contextual_recall()` | deepeval_server.py | test_case | (score, explanation) | Evaluate context recall |
+| `evaluate_contextual_relevancy()` | deepeval_server.py | test_case | (score, explanation) | Evaluate output relevancy |
+| `evaluate_pii_leakage()` | deepeval_server.py | test_case | (score, explanation) | Detect PII leakage |
+| `evaluate_bias()` | deepeval_server.py | test_case | (score, explanation) | Detect bias |
+| `evaluate_hallucination()` | deepeval_server.py | test_case | (score, explanation) | Detect hallucinations |
+| `get_verdict_for_metric()` | deepeval_server.py | metric, score | string | Convert score to verdict |
+| `evaluate()` | deepeval_server.py | metric_name, params | (score, explanation) | Main dispatcher |
+
+---
+
+## 🔗 Data Flow
+
+### **Complete Request-Response Cycle**
+
+```
+1️⃣  FRONTEND
+    User fills form → Click "Evaluate"
+         ↓
+    validateForm() checks all fields
+         ↓
+    If valid: evaluateLLM(formState)
+         ↓
+    Creates payload & sends HTTP POST
+    
+2️⃣  NETWORK
+    POST http://localhost:3002/api/eval-only
+    With JSON body containing metric, query, output, context
+    
+3️⃣  BACKEND
+    evalRoutes.ts receives request
+         ↓
+    Extracts body: {query, output, context, metric, expected_output}
+         ↓
+    Validates fields for selected metric
+         ↓
+    Converts context to array if needed
+         ↓
+    Builds evalParams object
+         ↓
+    Calls evalWithFields(evalParams)
+    
+4️⃣  DEEPEVAL CLIENT
+    evalWithFields() in evalClient.ts
+         ↓
+    Builds payload for Python
+         ↓
+    Makes HTTP POST to http://localhost:8000/eval
+    
+5️⃣  PYTHON SERVICE
+    FastAPI app receives request
+         ↓
+    Creates MetricEvaluator instance
+         ↓
+    Calls evaluate() dispatcher
+         ↓
+    Routes to correct metric function:
+      - evaluate_faithfulness()
+      - evaluate_answer_relevancy()
+      - etc.
+         ↓
+    Uses DeepEval metric class
+         ↓
+    LLM-as-judge evaluates output
+         ↓
+    Returns score (0-1) and explanation
+         ↓
+    Calls get_verdict_for_metric()
+         ↓
+    Converts score to verdict (FAITHFUL, HIGH_RECALL, etc.)
+    
+6️⃣  RESPONSE JOURNEY
+    Python returns: {metric_name, score, verdict, explanation}
+         ↓
+    evalClient.ts receives response
+         ↓
+    Returns to evalRoutes.ts
+         ↓
+    evalRoutes.ts formats response with query/output/context
+         ↓
+    Returns JSON to frontend
+    
+7️⃣  FRONTEND DISPLAY
+    evaluateLLM() Promise resolves
+         ↓
+    Response state updated
+         ↓
+    ResponsePanel component renders with:
+      - Score (large number)
+      - Verdict (colorful badge)
+      - Explanation (detailed text)
+```
+
+---
+
+## 📊 Supported Metrics
+
+| Metric | Measures | Requires | Verdict Types |
+|--------|----------|----------|----------------|
+| **Faithfulness** | Is output true to context? | query, output, context | FAITHFUL / PARTIAL / NOT_FAITHFUL |
+| **Answer Relevancy** | Does output answer query? | query, output | RELEVANT / PARTIAL / NOT_RELEVANT |
+| **Contextual Precision** | Is context relevant? | query, context, expected_output | HIGH_PRECISION / PARTIAL_PRECISION / LOW_PRECISION |
+| **Contextual Recall** | Is context complete? | context, expected_output | HIGH_RECALL / PARTIAL_RECALL / LOW_RECALL |
+| **Contextual Relevancy** | Is output relevant to query? | query, output | HIGHLY_RELEVANT / PARTIALLY_RELEVANT / LOW_RELEVANCY |
+| **PII Leakage** | Any personal info exposed? | query, output | SAFE / PARTIAL_LEAKAGE / HIGH_LEAKAGE |
+| **Bias** | Is response fair/unbiased? | query, output | UNBIASED / PARTIALLY_BIASED / BIASED |
+| **Hallucination** | Any false info made up? | query, output, context | NO_HALLUCINATION / PARTIAL_HALLUCINATION / HALLUCINATED |
+
+---
+
+## 📱 How to Use
+
+### **Simple Use Case: Check if Response is Faithful**
+
+**Step 1:** Fill the form
+```
+Metric: Faithfulness
+Query: "What is Python?"
+Output: "Python is a programming language"
+Context: "Python is a high-level programming language..."
+```
+
+**Step 2:** Click Evaluate
+
+**Step 3:** See results
+```
+Score: 0.92
+Verdict: FAITHFUL ✅
+Explanation: "The response accurately reflects the context..."
+```
+
+---
+
+## 🎯 Summary
+
+| Layer | Technology | Port | Functions |
+|-------|-----------|------|-----------|
+| **Frontend** | React + TypeScript + Vite | 5173 | validateForm, evaluateLLM, component rendering |
+| **Backend** | Express + Node.js + TypeScript | 3002 | Route handling, validation, Python communication |
+| **Python** | FastAPI + DeepEval | 8000 | Metric evaluation, scoring, verdict generation |
+
+---
+
+## ✨ Key Features by Stack
+
+### Frontend
+✅ Form validation  
+✅ Dynamic field visibility  
+✅ Real-time error messages  
+✅ Loading states  
+✅ Response display  
+
+### Backend
+✅ Request validation  
+✅ Metric-specific validation  
+✅ Environment configuration  
+✅ Error handling  
+✅ API orchestration  
+
+### Python
+✅ 8 evaluation metrics  
+✅ LLM-as-judge evaluation  
+✅ Async/await support  
+✅ Score-to-verdict mapping  
+✅ Detailed explanations  
+
+---
+
+**Last Updated:** April 19, 2026  
+**Status:** Production Ready ✅
+
+---
+
+*Happy Evaluating! 🚀*
